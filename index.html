@@ -3,49 +3,236 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>7-STAR القرآن الكريم</title>
+    <title>⭐ 7-STAR - القرآن الكريم ⭐</title>
     <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            font-family: Arial, sans-serif;
-            background-color: #0d1b2a;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #0b132b;
             color: #ffffff;
             text-align: center;
-            padding: 20px;
-            margin: 0;
+            padding: 15px;
         }
         .container {
             max-width: 500px;
             margin: auto;
-            background: #1b263b;
+            background: #1c2541;
             padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            border-radius: 16px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.4);
         }
-        h1 { color: #e0a96d; }
+        h1 { color: #ffc107; margin-bottom: 5px; font-size: 24px; }
+        p.subtitle { color: #a3cef1; font-size: 14px; margin-bottom: 15px; }
+        
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
         .btn {
-            background-color: #e0a96d;
-            color: #0d1b2a;
+            flex: 1;
+            background-color: #ffc107;
+            color: #0b132b;
             border: none;
-            padding: 12px 20px;
-            margin: 10px;
+            padding: 10px;
             border-radius: 8px;
-            font-size: 16px;
+            font-size: 14px;
             cursor: pointer;
             font-weight: bold;
         }
-        audio { width: 100%; margin-top: 20px; }
+        .btn:active { opacity: 0.8; }
+        
+        select {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 12px;
+            border-radius: 8px;
+            border: 1px solid #3a506b;
+            background: #0b132b;
+            color: #fff;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .section-box {
+            display: none;
+            background: #0b132b;
+            padding: 15px;
+            border-radius: 12px;
+            margin-top: 10px;
+            text-align: right;
+            max-height: 350px;
+            overflow-y: auto;
+            border: 1px solid #3a506b;
+        }
+        .active-section { display: block; }
+
+        .surah-item {
+            padding: 10px;
+            border-bottom: 1px solid #1c2541;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+        }
+        .surah-item:hover { background: #1c2541; }
+
+        .quran-text {
+            font-size: 18px;
+            line-height: 2.2;
+            color: #ffc107;
+            text-align: justify;
+            white-space: pre-line;
+        }
+
+        audio {
+            width: 100%;
+            margin-top: 15px;
+            border-radius: 8px;
+        }
+        .now-playing {
+            margin-top: 10px;
+            font-size: 13px;
+            color: #48cae4;
+        }
     </style>
 </head>
 <body>
+
     <div class="container">
         <h1>⭐ 7-STAR ⭐</h1>
-        <p>مرحباً بك في تطبيق القرآن الكريم</p>
-        <button class="btn">قراءة القرآن</button>
-        <button class="btn">اختر القارئ</button>
-        <audio controls>
-            <source src="https://server8.mp3quran.net/afs/001.mp3" type="audio/mpeg">
-            متصفحك لا يدعم مشغل الصوت.
-        </audio>
+        <p class="subtitle">تطبيق القرآن الكريم الكامل</p>
+
+        <div class="nav-buttons">
+            <button class="btn" onclick="showSection('quran')">📖 قراءة القرآن</button>
+            <button class="btn" onclick="showSection('reciters')">🎙️ اختر القارئ</button>
+        </div>
+
+        <!-- القارئ والسورة للصوتيات -->
+        <select id="reciterSelect" onchange="loadSurahAudio()">
+            <option value="">جارٍ تحميل القراء...</option>
+        </select>
+
+        <select id="surahSelect" onchange="loadSurahAudio()">
+            <option value="">اختر السورة للاستماع</option>
+        </select>
+
+        <div class="now-playing" id="nowPlaying">اختر سورة وقارئ للبدء</div>
+        <audio id="audioPlayer" controls></audio>
+
+        <!-- قسم القراءة -->
+        <div id="quranSection" class="section-box">
+            <p style="text-align:center; color:#a3cef1; margin-bottom:10px;">اختر سورة لقراءتها:</p>
+            <select id="readSurahSelect" onchange="fetchSurahText(this.value)">
+                <option value="">-- اختر السورة للقراءة --</option>
+            </select>
+            <div id="quranTextDisplay" class="quran-text"></div>
+        </div>
+
+        <!-- قسم القراء -->
+        <div id="recitersSection" class="section-box">
+            <p style="color:#a3cef1; text-align:center;">اختر القارئ المفضّل من القائمة المنسدلة في الأعلى لاستماع السور بصوته.</p>
+        </div>
     </div>
+
+    <script>
+        const recitersApi = "https://api.mp3quran.net/radios/radio_english.json"; // للسرعة
+        let surahsData = [];
+
+        // جلب قائمة السور والقراء عند تحميل الصفحة
+        window.onload = async function() {
+            await loadSurahsList();
+            await loadReciters();
+        };
+
+        async function loadSurahsList() {
+            try {
+                const res = await fetch("https://api.alquran.cloud/v1/surah");
+                const data = await res.json();
+                surahsData = data.data;
+
+                const surahSelect = document.getElementById("surahSelect");
+                const readSurahSelect = document.getElementById("readSurahSelect");
+
+                surahsData.forEach(s => {
+                    let opt1 = document.createElement("option");
+                    opt1.value = s.number;
+                    opt1.textContent = `${s.number}. ${s.name}`;
+                    surahSelect.appendChild(opt1);
+
+                    let opt2 = document.createElement("option");
+                    opt2.value = s.number;
+                    opt2.textContent = `${s.number}. ${s.name}`;
+                    readSurahSelect.appendChild(opt2);
+                });
+            } catch (e) {
+                console.error("خطأ في جلب السور", e);
+            }
+        }
+
+        async function loadReciters() {
+            const reciterSelect = document.getElementById("reciterSelect");
+            reciterSelect.innerHTML = "<option value=''>-- اختر القارئ --</option>";
+            
+            const famousReciters = [
+                { name: "مشاري العفاسي", server: "https://server8.mp3quran.net/afs/" },
+                { name: "عبد الباسط عبد الصمد", server: "https://server7.mp3quran.net/basit/" },
+                { name: "محمود خليل الحصري", server: "https://server13.mp3quran.net/hssr/" },
+                { name: "سعود الشريم", server: "https://server7.mp3quran.net/shur/" },
+                { name: "ماهر المعيقلي", server: "https://server12.mp3quran.net/maher/" }
+            ];
+
+            famousReciters.forEach(r => {
+                let opt = document.createElement("option");
+                opt.value = r.server;
+                opt.textContent = r.name;
+                reciterSelect.appendChild(opt);
+            });
+        }
+
+        function loadSurahAudio() {
+            const server = document.getElementById("reciterSelect").value;
+            const surahNum = document.getElementById("surahSelect").value;
+            const player = document.getElementById("audioPlayer");
+            const info = document.getElementById("nowPlaying");
+
+            if (server && surahNum) {
+                let formattedNum = surahNum.padStart(3, '0');
+                player.src = `${server}${formattedNum}.mp3`;
+                player.play();
+                info.textContent = `جاري التشغيل: سورة رقم ${surahNum}`;
+            }
+        }
+
+        async function fetchSurahText(surahNum) {
+            const display = document.getElementById("quranTextDisplay");
+            if (!surahNum) {
+                display.innerHTML = "";
+                return;
+            }
+            display.innerHTML = "جاري تحميل النص الكريم...";
+            try {
+                const res = await fetch(`https://api.alquran.cloud/v1/surah/${surahNum}`);
+                const data = await res.json();
+                let text = "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ\n\n";
+                data.data.ayahs.forEach(a => {
+                    text += `${a.text} ﴿${a.numberInSurah}﴾ `;
+                });
+                display.innerText = text;
+            } catch (e) {
+                display.innerHTML = "حدث خطأ أثناء تحميل النص.";
+            }
+        }
+
+        function showSection(section) {
+            document.getElementById("quranSection").classList.remove("active-section");
+            document.getElementById("recitersSection").classList.remove("active-section");
+
+            if (section === 'quran') {
+                document.getElementById("quranSection").classList.add("active-section");
+            } else if (section === 'reciters') {
+                document.getElementById("recitersSection").classList.add("active-section");
+            }
+        }
+    </script>
 </body>
 </html>
