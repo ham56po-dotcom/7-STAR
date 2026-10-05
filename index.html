@@ -4,8 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Muslim - تطبيق القرآن الكريم والإسلاميات</title>
-  <!-- استدعاء خط "أميري" المخصص للقرآن والأذكار -->
+  
+  <!-- إعدادات الأيقونة للشاشة الرئيسية واللوجو -->
+  <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/2859/2859809.png">
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2859/2859809.png">
+  <meta name="theme-color" content="#0F5132">
+
+  <!-- خط أميري للقرآن الكريم وخط القاهرة للواجهة -->
   <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+  
   <style>
     :root {
       --primary: #0F5132;
@@ -34,6 +41,16 @@
       border-bottom-left-radius: 20px;
       border-bottom-right-radius: 20px;
       box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    header img {
+      width: 50px;
+      height: 50px;
+      margin-bottom: 8px;
     }
 
     header h1 { font-size: 1.8rem; color: var(--accent); font-weight: 800; letter-spacing: 1px; }
@@ -78,7 +95,7 @@
       cursor: pointer;
     }
 
-    /* خط القرآن الكريم والأذكار بالخط المصحفي */
+    /* خط القرآن الكريم والأذكار المصحفي */
     .quran-text, .azkar-text, .hadith-text {
       font-family: 'Amiri', serif;
       font-size: 24px;
@@ -169,7 +186,8 @@
 <body>
 
   <header>
-    <h1>🌙 Muslim</h1>
+    <img src="https://cdn-icons-png.flaticon.com/512/2859/2859809.png" alt="Muslim Logo">
+    <h1>Muslim</h1>
     <p>تطبيق القرآن الكريم والإسلاميات</p>
   </header>
 
@@ -496,4 +514,5 @@
   </script>
 
 </body>
-</html>
+      </html>
+      
