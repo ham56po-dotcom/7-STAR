@@ -20,7 +20,7 @@
     body {
       background-color: var(--bg);
       color: var(--text);
-      padding-bottom: 80px; /* مسافة للشريط السفي */
+      padding-bottom: 80px;
     }
 
     header {
@@ -55,7 +55,7 @@
       margin-bottom: 12px;
     }
 
-    select {
+    select, button.btn-action {
       width: 100%;
       padding: 12px;
       margin-bottom: 12px;
@@ -65,6 +65,14 @@
       font-size: 15px;
       font-family: 'Cairo', sans-serif;
       outline: none;
+    }
+
+    button.btn-action {
+      background-color: var(--secondary);
+      color: white;
+      font-weight: bold;
+      border: none;
+      cursor: pointer;
     }
 
     /* الصوتيات */
@@ -102,7 +110,13 @@
     /* مواقيت الصلاة */
     .prayer-time {
       display: flex; justify-content: space-between;
-      padding: 10px; border-bottom: 1px solid #E9ECEF;
+      padding: 12px; border-bottom: 1px solid #E9ECEF;
+      font-weight: 600;
+    }
+
+    .prayer-time span:last-child {
+      color: var(--primary);
+      font-weight: bold;
     }
 
     /* الشريط السفلي للتنقل */
@@ -129,7 +143,7 @@
 
   <header>
     <h1>⭐ 7-STAR ⭐</h1>
-    <p>تطبيق القرآن الكريم الشامل</p>
+    <p>تطبيق القرآن الكريم والإسلاميات</p>
   </header>
 
   <div class="container">
@@ -165,15 +179,26 @@
       </div>
     </div>
 
-    <!-- تبويب مواقيت الصلاة -->
+    <!-- تبويب مواقيت الصلاة (تلقائي مع تنبيه الأذان) -->
     <div id="tab-prayers" class="tab-content">
       <div class="card">
-        <div class="card-title">🕌 مواقيت الصلاة</div>
-        <div class="prayer-time"><span>الفجر</span> <span>04:30 AM</span></div>
-        <div class="prayer-time"><span>الظهر</span> <span>12:00 PM</span></div>
-        <div class="prayer-time"><span>العصر</span> <span>03:30 PM</span></div>
-        <div class="prayer-time"><span>المغرب</span> <span>06:00 PM</span></div>
-        <div class="prayer-time"><span>العشاء</span> <span>07:30 PM</span></div>
+        <div class="card-title">🕌 مواقيت الصلاة وتنبيه الأذان</div>
+        <button class="btn-action" onclick="enableNotifications()">🔔 تفعيل تنبيهات الأذان والصوت</button>
+
+        <select id="citySelect" onchange="fetchPrayerTimes()">
+          <option value="Cairo">القاهرة (مصر)</option>
+          <option value="Alexandria">الإسكندرية (مصر)</option>
+          <option value="Giza">الجيزة (مصر)</option>
+          <option value="Mecca">مكة المكرمة</option>
+          <option value="Riyadh">الرياض</option>
+        </select>
+
+        <div class="prayer-time"><span>الفجر</span> <span id="p-fajr">جاري التحميل...</span></div>
+        <div class="prayer-time"><span>الشروق</span> <span id="p-sunrise">جاري التحميل...</span></div>
+        <div class="prayer-time"><span>الظهر</span> <span id="p-dhuhr">جاري التحميل...</span></div>
+        <div class="prayer-time"><span>العصر</span> <span id="p-asr">جاري التحميل...</span></div>
+        <div class="prayer-time"><span>المغرب</span> <span id="p-maghrib">جاري التحميل...</span></div>
+        <div class="prayer-time"><span>العشاء</span> <span id="p-isha">جاري التحميل...</span></div>
       </div>
     </div>
 
@@ -190,6 +215,9 @@
 
   </div>
 
+  <!-- مشغل صوت الأذان (مخفي) -->
+  <audio id="adhanAudio" src="https://download.quranicaudio.com/adhan/abdul_basit.mp3" preload="auto"></audio>
+
   <!-- الشريط السفلي للتنقل بين الأقسام -->
   <div class="bottom-nav">
     <button class="nav-item active" onclick="switchTab('tab-quran', this)">
@@ -204,8 +232,35 @@
   </div>
 
   <script>
-    // تحميل قائمة السور
-    window.onload = async function() {
+    let prayerTimings = {};
+    let adhanTriggered = {};
+
+    window.onload = function() {
+      loadSurahs();
+      fetchPrayerTimes();
+      setInterval(checkPrayerTime, 10000); // يفحص الوقت كل 10 ثوانٍ
+    };
+
+    // طلب الإذن لتشغيل التنبيهات والصوت
+    function enableNotifications() {
+      if ('Notification' in window) {
+        Notification.requestPermission().then(permission => {
+          if (permission === 'granted') {
+            alert('تم تفعيل تنبيهات الأذان بنجاح! 🔔');
+          } else {
+            alert('يرجى السماح بالتنبيهات من إعدادات المتصفح.');
+          }
+        });
+      }
+      // تشغيل وتوقيف الصوت للحظة لكسر حظر المتصفح للتلقائي
+      const adhan = document.getElementById('adhanAudio');
+      adhan.play().then(() => {
+        adhan.pause();
+        adhan.currentTime = 0;
+      }).catch(e => console.log(e));
+    }
+
+    async function loadSurahs() {
       try {
         const res = await fetch("https://api.alquran.cloud/v1/surah");
         const data = await res.json();
@@ -228,9 +283,72 @@
       } catch (e) {
         console.error("خطأ في جلب السور", e);
       }
-    };
+    }
 
-    // تشغيل الصوت
+    // جلب مواقيت الصلاة
+    async function fetchPrayerTimes() {
+      const city = document.getElementById("citySelect").value;
+      try {
+        const res = await fetch(`https://api.aladhan.com/v1/timingsByCity?city=${city}&country=Egypt&method=5`);
+        const data = await res.json();
+        prayerTimings = data.data.timings;
+
+        document.getElementById("p-fajr").innerText = convertTo12Hour(prayerTimings.Fajr);
+        document.getElementById("p-sunrise").innerText = convertTo12Hour(prayerTimings.Sunrise);
+        document.getElementById("p-dhuhr").innerText = convertTo12Hour(prayerTimings.Dhuhr);
+        document.getElementById("p-asr").innerText = convertTo12Hour(prayerTimings.Asr);
+        document.getElementById("p-maghrib").innerText = convertTo12Hour(prayerTimings.Maghrib);
+        document.getElementById("p-isha").innerText = convertTo12Hour(prayerTimings.Isha);
+      } catch (e) {
+        console.error("خطأ في مواقيت الصلاة", e);
+      }
+    }
+
+    // فحص الوقت المباشر وإطلاق الأذان
+    function checkPrayerTime() {
+      if (!prayerTimings.Fajr) return;
+
+      const now = new Date();
+      const currentHours = String(now.getHours()).padStart(2, '0');
+      const currentMinutes = String(now.getMinutes()).padStart(2, '0');
+      const currentTimeStr = `${currentHours}:${currentMinutes}`;
+
+      const prayers = {
+        'الفجر': prayerTimings.Fajr,
+        'الظهر': prayerTimings.Dhuhr,
+        'العصر': prayerTimings.Asr,
+        'المغرب': prayerTimings.Maghrib,
+        'العشاء': prayerTimings.Isha
+      };
+
+      for (let [name, time] of Object.entries(prayers)) {
+        if (time === currentTimeStr && !adhanTriggered[name]) {
+          adhanTriggered[name] = true;
+          playAdhan(name);
+        }
+      }
+    }
+
+    function playAdhan(prayerName) {
+      const adhan = document.getElementById('adhanAudio');
+      adhan.play();
+
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification(`الله أكبر - حان الآن موعد أذان ${prayerName}`, {
+          body: `حان الآن موعد صلاة ${prayerName} حسب توقيت مدينتك.`,
+          icon: 'https://cdn-icons-png.flaticon.com/512/2859/2859809.png'
+        });
+      }
+    }
+
+    function convertTo12Hour(time) {
+      let [hours, minutes] = time.split(':');
+      hours = parseInt(hours);
+      let ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12 || 12;
+      return `${hours}:${minutes} ${ampm}`;
+    }
+
     function loadAudio() {
       const server = document.getElementById("reciterSelect").value;
       const surahNum = document.getElementById("audioSurahSelect").value;
@@ -243,7 +361,6 @@
       }
     }
 
-    // جلب نص السورة للقراءة
     async function fetchSurahText(surahNum) {
       const display = document.getElementById("quranTextDisplay");
       if (!surahNum) {
@@ -264,7 +381,6 @@
       }
     }
 
-    // التنقل بين التبويبات السفليّة
     function switchTab(tabId, btn) {
       document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
       document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
@@ -272,7 +388,6 @@
       btn.classList.add('active');
     }
 
-    // العداد الخاص بالسبحة
     let count = 0;
     function incrementCounter() {
       count++;
